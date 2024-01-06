@@ -2,99 +2,83 @@
 
 class Game
 {
-    private $graph;
-    private $exits;
-    private $linksCount;
-
-    public function run(int $position)
-    {
-        // find the shortest of all possible paths
-        $shortestPath = [];
-        $fewestJumps = $this->linksCount;
-        foreach ($this->exits as $exit) {
-            $path = $this->bfsPath($position, $exit);
-            $count = count($path);
-            if ($count && $count <= $fewestJumps) {
-                $fewestJumps = $count;
-                $shortestPath = $path;
-            }
-        }
-        // get the last two nodes
-        $n1 = array_pop($shortestPath);
-        $n2 = array_pop($shortestPath);
-
-        // remove nodes link
-        $this->unlinkNodes($n1, $n2);
-    
-        echo $n1.' '.$n2."\n";
-    }
+    private $matrix = [];
+    private $visited = [];
+    private $width = 0;
+    private $height = 0;
+    private $memo = [];
+    private $targetX = 0;
+    private $targetY = 0;
 
     public function parseInput()
     {
-        fscanf(STDIN, "%d %d %d", $nodes, $links, $exits);
-
-        $this->linksCount = $links;
-
-        for ($i = 0; $i < $links; $i++) {
-            fscanf(STDIN, "%d %d", $node1, $node2);
-            $this->graph[$node1][$node2] = $node2;
-            $this->graph[$node2][$node1] = $node1;
-        }
-
-        for ($i = 0; $i < $exits; $i++) {
-            fscanf(STDIN, "%d", $exit);
-            $this->exits[] = $exit;
+        fscanf(STDIN, "%d", $this->width);
+        fscanf(STDIN, "%d", $this->height);
+        for ($y = 0; $y < $this->height; $y++) {
+            $this->graph[$y] = array_map(
+                function ($a) { return $a === 'O'; },
+                str_split(stream_get_line(STDIN, $this->width + 1, "\n"))
+            );
         }
     }
 
-    private function bfsPath(int $start, int $end)
+    public function floodFill(int $x, int $y)
     {
-        $queue = [];
-        $visited = [];
+        if (!$this->isValidCoordinate($x, $y)|| !$this->graph[$y][$x] || isset($this->visited[$y][$x])) {
+            return 0;
+        }
 
-        $visited[$start] = true;
-        $queue[] = [$start];
+        if (isset($this->memo[$y][$x])) {
+            return $this->memo[$y][$x];
+        }
 
-        while (!empty($queue)) {
-            // get first element from queue
-            $path = array_shift($queue);
-            $node = end($path);
+        $cnt = 1;
+        $this->visited[$y][$x] = true;
 
-            // check if we've reached the end
-            if ($node === $end) {
-                return $path;
-            }
-            
-            if (isset($this->graph[$node])) {
-                foreach ($this->graph[$node] as $neighbour) {
-                    if (!isset($visited[$neighbour])) {
-                        $visited[$neighbour] = true;
+        $cnt += $this->floodFill($x, $y - 1);
+        $cnt += $this->floodFill($x, $y + 1);
+        $cnt += $this->floodFill($x - 1, $y);
+        $cnt += $this->floodFill($x + 1, $y);
 
-                        $newPath = $path;
-                        $newPath[] = $neighbour;
+        if ($this->targetX === $x && $this->targetY === $y) {
+            $this->memoizeState($cnt);
+        }
 
-                        $queue[] = $newPath;
-                    }
+        return $cnt;
+    }
+
+    public function run(int $x, int $y)
+    {
+        $this->visited = [];
+        $this->targetX = $x;
+        $this->targetY = $y;
+        echo $this->floodFill($x, $y)."\n";
+    }
+
+    private function memoizeState(int $value)
+    {
+        foreach ($this->visited as $y => $row) {
+            foreach ($row as $x => $val) {
+                if (!isset($this->memo[$y])) {
+                    $this->memo[$y] = [];
                 }
+                $this->memo[$y][$x] = $value;
             }
         }
-
-        return [];
     }
 
-    private function unlinkNodes(int $n1, int $n2)
+    private function isValidCoordinate(int $x, int $y)
     {
-        unset($this->graph[$n1][$n2]);
-        unset($this->graph[$n2][$n1]);
+        return $x >= 0 && $x < $this->width && $y >= 0 && $y < $this->height;
     }
 }
 
 $game = new Game();
 $game->parseInput();
-
-while (true) {
-    fscanf(STDIN, "%d", $si);
-    $game->run($si);
+fscanf(STDIN, "%d", $n);
+for ($i = 0; $i < $n; $i++) {
+    fscanf(STDIN, "%d %d", $x, $y);
+    $game->run($x, $y);
 }
 
 ?>
